@@ -3,21 +3,21 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import EditModal from './Modal';
 
 const Blog = () => {
-    const [tagOptions, setTagOptions] = useState(['html', 'css', 'javascript', 'react', 'nodejs', 'mongodb']);
+    const [tagOptions, setTagOptions] = useState(['1', '2', '3', '4']);
     const [formData, setFormData] = useState({
         title: '',
         image: '',
         content: '',
-        category: 'uncategorized',
-        tags: [],
+        categoryId: '1',
+        tagIds: [],
         published: false,
     });
     const [modalData, setModalData] = useState({
         title: '',
         image: '',
         content: '',
-        category: 'uncategorized',
-        tags: [],
+        categoryId: '1',
+        tagIds: [],
         published: false,
     });
 
@@ -48,88 +48,138 @@ const Blog = () => {
 
     const handleCheckboxChange = (tag) => {
         setFormData((prevFormData) => {
-            const updatedTags = prevFormData.tags.includes(tag)
-                ? prevFormData.tags.filter((t) => t !== tag)
-                : [...prevFormData.tags, tag];
+            const updatedTagIds = prevFormData.tagIds.includes(tag)
+                ? prevFormData.tagIds.filter((t) => t !== tag)
+                : [...prevFormData.tagIds, tag];
 
             return {
                 ...prevFormData,
-                tags: updatedTags,
+                tags: updatedTagIds,
             };
         });
     };
 
     const handleCheckboxModalChange = (tag) => {
         setModalData((prevModalData) => {
-            const updatedTags = prevModalData.tags.includes(tag)
-                ? prevModalData.tags.filter((t) => t !== tag)
-                : [...prevModalData.tags, tag];
+            const updatedTagIds = prevModalData.tagIds.includes(tag)
+                ? prevModalData.tagIds.filter((t) => t !== tag)
+                : [...prevModalData.tagIds, tag];
 
             return {
                 ...prevModalData,
-                tags: updatedTags,
+                tags: updatedTagIds,
             };
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (formData.title.trim() !== '') {
-            setArticles((prevArticles) => [...prevArticles, { id: Date.now(), ...formData }]);
+
+        try {
+            const response = await fetch('http://localhost:3300/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...formData,
+                    categoryId: parseInt(formData.categoryId),
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Errore durante l\'invio del post');
+            }
+
+            const data = await response.json();
+            setArticles((prevArticles) => [...prevArticles, data.data]);
             setFormData({
                 title: '',
                 image: '',
                 content: '',
-                category: 'uncategorized',
-                tags: [],
+                categoryId: '1',
+                tagsIds: [],
                 published: false,
             });
+            console.log('Post inviato con successo:', data.data);
+        } catch (error) {
+            console.error('Errore durante l\'invio del post:', error);
         }
     };
 
-
-    const handleDelete = (id) => {
-        setArticles((prevArticles) => prevArticles.filter((article) => article.id !== id));
-        if (editingId === id) {
-            setEditingId(null);
-        }
-    };
-
-    const handleEdit = (id, currentArticle) => {
+    const handleEdit = (id, article) => {
         setEditingId(id);
-        setEditTitle(currentArticle.title);
         setModalData({
-            title: currentArticle.title || '',
-            image: currentArticle.image || '',
-            content: currentArticle.content || '',
-            category: currentArticle.category || 'uncategorized',
-            tags: currentArticle.tags || [],
-            published: currentArticle.published || false,
+            title: article.title || '',
+            image: article.image || '',
+            content: article.content || '',
+            categoryId: article.categoryId || '1',
+            tagIds: article.tagIds || [],
+            published: article.published || false,
+            slug: article.slug,
         });
-        //console.log(currentArticle);
         handleShowModal();
     };
 
-    const handleSaveModalChanges = () => {
-        console.log('Prima delle modifiche:', articles, editingId, modalData);
+    const handleDelete = async (slugToDelete) => {
+        try {
+            const deleteResponse = await fetch(`http://localhost:3300/posts/${slugToDelete}`, {
+                method: 'DELETE',
+            });
 
-        setArticles((prevArticles) =>
-            prevArticles.map((article) =>
-                article.id === editingId ? { ...article, ...modalData } : article
-            )
-        );
+            if (!deleteResponse.ok) {
+                throw new Error(`Errore durante l'eliminazione del post (${deleteResponse.status}): ${await deleteResponse.text()}`);
+            }
 
-        setEditingId(null);
-        handleCloseModal();
+            setArticles((prevArticles) => prevArticles.filter((article) => article.slug !== slugToDelete));
+            console.log('Post eliminato con successo');
+        } catch (error) {
+            console.error('Errore durante l\'eliminazione del post:', error);
+        }
+    };
 
-        console.log('Dopo le modifiche:', articles, editingId, modalData);
+    const handleSaveModalChanges = async () => {
+        try {
+            const updateResponse = await fetch(`http://localhost:3300/posts/${modalData.slug}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(modalData),
+            });
+
+            if (!updateResponse.ok) {
+                throw new Error(`Errore durante l'aggiornamento del post (${updateResponse.status}): ${await updateResponse.text()}`);
+            }
+
+            setArticles((prevArticles) =>
+                prevArticles.map((prevArticle) =>
+                    prevArticle.slug === modalData.slug ? { ...prevArticle, ...modalData } : prevArticle
+                )
+            );
+
+            setEditingId(null);
+            handleCloseModal();
+            console.log('Post aggiornato con successo');
+        } catch (error) {
+            console.error('Errore durante l\'aggiornamento del post:', error);
+        }
     };
 
     useEffect(() => {
-        console.log('Modal Data cambiato:', modalData);
-    }, [modalData]);
+        const fetchPosts = async () => {
+            try {
+                const response = await fetch('http://localhost:3300/posts');
+                const data = await response.json();
+                setArticles(data.data);
+            } catch (error) {
+                console.error('Errore nel recupero dei post:', error);
+            }
+        };
 
-
+        fetchPosts();
+        console.log(fetchPosts)
+    }, []);
 
     return (
         <div className='my-container d-flex flex-column align-items-center'>
@@ -151,10 +201,11 @@ const Blog = () => {
                         </div>
                         <label className='form-label mt-3'>Category:</label>
                         <div className='d-flex'>
-                            <select className='form-select' name="category" value={formData.category} onChange={handleChange}>
-                                <option value="uncategorized">Uncategorized</option>
-                                <option value="categoryone">Category 1</option>
-                                <option value="categorytwo">Category 2</option>
+                            <select className='form-select' name="categoryId" value={formData.categoryId} onChange={handleChange}>
+                                <option value="1">Category 1</option>
+                                <option value="2">Category 2</option>
+                                <option value="3">Category 3</option>
+                                <option value="4">Category 4</option>
                             </select>
                         </div>
                         <label className='form-label mt-3'>Tags:</label>
@@ -164,7 +215,7 @@ const Blog = () => {
                                     <input
                                         type="checkbox"
                                         name={tag}
-                                        checked={formData.tags.includes(tag)}
+                                        checked={formData.tagIds.includes(tag)}
                                         onChange={() => handleCheckboxChange(tag)}
                                     />
                                     <label className='mx-2'>{tag}</label>
@@ -203,7 +254,7 @@ const Blog = () => {
                                         <button className='btn btn-sm btn-warning' onClick={() => handleEdit(article.id, article)}>
                                             <i className="fa-solid fa-edit"></i>
                                         </button>
-                                        <button className='btn btn-sm btn-danger' onClick={() => handleDelete(article.id)}>
+                                        <button className='btn btn-sm btn-danger' onClick={() => handleDelete(article.slug)}>
                                             <i className="fa-solid fa-trash"></i>
                                         </button>
                                     </div>
