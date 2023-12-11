@@ -9,7 +9,7 @@ const Blog = () => {
         image: '',
         content: '',
         categoryId: '1',
-        tagIds: [],
+        tagId: null,
         published: false,
     });
     const [modalData, setModalData] = useState({
@@ -17,7 +17,7 @@ const Blog = () => {
         image: '',
         content: '',
         categoryId: '1',
-        tagIds: [],
+        tagId: null,
         published: false,
     });
 
@@ -48,29 +48,29 @@ const Blog = () => {
 
     const handleCheckboxChange = (tag) => {
         setFormData((prevFormData) => {
-            const updatedTagIds = prevFormData.tagIds.includes(tag)
-                ? prevFormData.tagIds.filter((t) => t !== tag)
-                : [...prevFormData.tagIds, tag];
+            const updatedTagId = prevFormData.tagId === tag ? null : tag;
 
             return {
                 ...prevFormData,
-                tags: updatedTagIds,
+                tagId: updatedTagId,
             };
         });
     };
 
     const handleCheckboxModalChange = (tag) => {
         setModalData((prevModalData) => {
-            const updatedTagIds = prevModalData.tagIds.includes(tag)
-                ? prevModalData.tagIds.filter((t) => t !== tag)
-                : [...prevModalData.tagIds, tag];
+            const updatedTagId = prevModalData.tagId === tag
+                ? null
+                : tag;
 
             return {
                 ...prevModalData,
-                tags: updatedTagIds,
+                tagId: updatedTagId,
             };
         });
     };
+
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -84,6 +84,7 @@ const Blog = () => {
                 body: JSON.stringify({
                     ...formData,
                     categoryId: parseInt(formData.categoryId),
+                    tagId: parseInt(formData.tagId),
                 }),
             });
 
@@ -98,7 +99,7 @@ const Blog = () => {
                 image: '',
                 content: '',
                 categoryId: '1',
-                tagsIds: [],
+                tagId: null,
                 published: false,
             });
             console.log('Post inviato con successo:', data.data);
@@ -114,7 +115,7 @@ const Blog = () => {
             image: article.image || '',
             content: article.content || '',
             categoryId: article.categoryId || '1',
-            tagIds: article.tagIds || [],
+            tagId: article.tagId || null,
             published: article.published || false,
             slug: article.slug,
         });
@@ -140,13 +141,25 @@ const Blog = () => {
 
     const handleSaveModalChanges = async () => {
         try {
+            console.log('Prima della richiesta API');
+            console.log('Dati inviati:', JSON.stringify({
+                ...modalData,
+                categoryId: parseInt(modalData.categoryId),
+                tagId: parseInt(modalData.tagId),
+            }));
             const updateResponse = await fetch(`http://localhost:3300/posts/${modalData.slug}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(modalData),
+                body: JSON.stringify({
+                    ...modalData,
+                    categoryId: parseInt(modalData.categoryId),
+                    tagId: parseInt(modalData.tagId),
+                }),
             });
+            console.log('Dopo la richiesta API');
+
 
             if (!updateResponse.ok) {
                 throw new Error(`Errore durante l'aggiornamento del post (${updateResponse.status}): ${await updateResponse.text()}`);
@@ -215,7 +228,7 @@ const Blog = () => {
                                     <input
                                         type="checkbox"
                                         name={tag}
-                                        checked={formData.tagIds.includes(tag)}
+                                        checked={formData.tagId === tag}
                                         onChange={() => handleCheckboxChange(tag)}
                                     />
                                     <label className='mx-2'>{tag}</label>

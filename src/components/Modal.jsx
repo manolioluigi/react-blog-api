@@ -65,7 +65,7 @@ const EditModal = ({ show, handleClose, handleSave, formData, handleChange, tagO
                         <input
                             type="checkbox"
                             name={tag}
-                            checked={formData.tagIds.includes(tag)}
+                            checked={formData.tagId === tag}
                             onChange={() => handleCheckboxChange(tag)}
                         />
                         <label className='mx-2'>{tag}</label>
